@@ -1,0 +1,16 @@
+{
+	"extends": "@tsconfig/bun/tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"types": ["bun-types"],
+		"paths": {
+			"@/app/*": ["src/app/*"],
+			"@/infra/*": ["src/infra/*"],
+			"@/env": ["src/env/index.ts"],
+			"@/lib": ["src/lib/index.ts"],
+			"@/utils": ["src/utils/index.ts"],
+			"~/schema": ["drizzle/schema.ts"]
+		}
+	},
+	"include": ["./**/*.ts", "./**/*.d.ts"]
+}
