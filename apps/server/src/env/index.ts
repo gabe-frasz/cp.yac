@@ -3,12 +3,15 @@ import { z } from "zod";
 
 export const env = createEnv({
   server: {
-    PORT: z.number().default(3333),
+    PORT: z.coerce.number().default(3333),
     NODE_ENV: z.enum(["development", "production", "test"]),
-    DB_URL: z.string(),
+    DB_URL: z.string().min(1),
+    UPSTASH_REDIS_URL: z.url(),
+    UPSTASH_REDIS_TOKEN: z.string().min(1),
+    MAILTRAP_USERNAME: z.string().min(1),
+    MAILTRAP_PASSWORD: z.string().min(1),
+    FRONTEND_URL: z.string().min(1),
   },
-  clientPrefix: "PUBLIC_",
-  client: {},
-  runtimeEnv: Bun.env,
+  runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,
 });
