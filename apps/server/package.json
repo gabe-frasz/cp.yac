@@ -7,7 +7,12 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "build": "bun src/env/index.ts && bun build src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "drizzle-kit seed",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.2.0",
@@ -17,6 +22,7 @@
     "drizzle-orm": "^0.41.0",
     "elysia": "latest",
     "nodemailer": "^6.10.1",
+    "otpauth": "^9.4.0",
     "pg": "^8.14.1",
     "postgres": "^3.4.5",
     "ulid": "^3.0.0",

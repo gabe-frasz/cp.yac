@@ -1,28 +1,20 @@
 import { Elysia, t } from "elysia";
-import { jwt } from "@elysiajs/jwt";
 import { ulid } from "ulid";
 
 import { CreateUserUseCase, SendMagicLinkUseCase } from "@/app/use-cases";
 import { MailtrapMailingAdapter } from "@/app/adapters";
 import { RedisAuthCache } from "@/infra/cache";
 import { DrizzleUserRepository } from "@/infra/database";
+import { jwtPlugin, pendingJwtPlugin } from "@/infra/http/plugins";
 import { tryCatch } from "@/utils";
 import { TOKEN_MAX_AGE } from "@/constants";
+import { env } from "@/env";
 
 export const authRoute = new Elysia({ prefix: "/auth" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: "some-secret",
-      schema: t.Object({
-        sub: t.String({ format: "email" }),
-        username: t.String(),
-        jti: t.String(),
-      }),
-    }),
-  )
+  .use(jwtPlugin)
+  .use(pendingJwtPlugin)
   .post(
-    "/signup",
+    "/magic-link/login",
     async ({ body, jwt }) => {
       const { username, email } = body;
 
@@ -34,7 +26,6 @@ export const authRoute = new Elysia({ prefix: "/auth" })
 
       const mailer = new MailtrapMailingAdapter();
       const sendMagicLinkUseCase = new SendMagicLinkUseCase(mailer);
-
       await sendMagicLinkUseCase.execute({ email, token });
 
       return new Response(null, { status: 200 });
@@ -46,11 +37,9 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       }),
     },
   )
-  .post("/login", async () => {})
-  .post("/logout", async () => {})
   .get(
-    "/magic-link",
-    async ({ query, jwt, cookie }) => {
+    "/magic-link/verify",
+    async ({ query, jwt, pendingJwt, cookie }) => {
       const { token } = query;
 
       const [result, jwtError] = await tryCatch(jwt.verify(token));
@@ -67,18 +56,26 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       await authCache.removeFromAllowlist(jti);
 
       const userRepository = new DrizzleUserRepository();
-      const createUserUseCase = new CreateUserUseCase(userRepository);
-      await createUserUseCase.execute({ email, username });
-
+      const user = await userRepository.findByEmail(email);
+      if (!user) {
+        const createUserUseCase = new CreateUserUseCase(userRepository);
+        await createUserUseCase.execute({ email, username });
+      }
       cookie["auth"].set({
         value: token,
         httpOnly: true,
+        sameSite: "lax",
         maxAge: TOKEN_MAX_AGE,
       });
 
-      return Response.redirect("http://localhost:3000/");
+      return Response.redirect(env.FRONTEND_URL);
     },
     {
       query: t.Object({ token: t.String() }),
     },
-  );
+  )
+  .post("/2fa/setup", async () => {})
+  .post("/2fa/enable", async () => {})
+  .post("/2fa/verify", async () => {})
+  .post("/2fa/disable", async () => {})
+  .post("/logout", async () => {});

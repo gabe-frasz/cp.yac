@@ -11,6 +11,8 @@ export const env = createEnv({
     MAILTRAP_USERNAME: z.string().min(1),
     MAILTRAP_PASSWORD: z.string().min(1),
     FRONTEND_URL: z.string().min(1),
+    JWT_SECRET: z.string().min(1),
+    PENDING_JWT_SECRET: z.string().min(1),
   },
   runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,

@@ -12,6 +12,6 @@ export class CreateUserUseCase {
   async execute(request: CreateUserUseCaseRequest) {
     const { email, username } = request;
     const user = new User({ email, username });
-    await this.userRepository.createUser(user);
+    await this.userRepository.create(user);
   }
 }
