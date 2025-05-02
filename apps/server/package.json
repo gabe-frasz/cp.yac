@@ -1,12 +1,11 @@
 {
   "name": "server",
-  "version": "0.0.0",
   "private": true,
   "type": "module",
   "module": "dist/index.js",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "build": "bun src/env/index.ts && bun build src/index.ts",
+    "dev": "bun run --watch src/server.ts",
+    "build": "bun src/env/index.ts && bun build src/server.ts",
     "start": "node dist/index.js",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
