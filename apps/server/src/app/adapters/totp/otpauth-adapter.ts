@@ -6,8 +6,8 @@ import type { TOTPAdapter } from "./adapter";
 export class TOTPAuthAdapter implements TOTPAdapter {
   generate(username: string) {
     const totp = new TOTP({
-      issuer: TOTP_ISSUER,
-      label: `${TOTP_ISSUER.toUpperCase()}: ${username}`,
+      issuer: TOTP_ISSUER.toUpperCase(),
+      label: `${username}`,
     });
 
     return {

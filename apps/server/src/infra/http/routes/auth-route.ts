@@ -1,13 +1,20 @@
 import { Elysia, t } from "elysia";
 import { ulid } from "ulid";
 
-import { CreateUserUseCase, SendMagicLinkUseCase } from "@/app/use-cases";
-import { MailtrapMailingAdapter } from "@/app/adapters";
+import {
+  CreateUserUseCase,
+  SendMagicLinkUseCase,
+  VerifyMagicLinkUseCase,
+  Setup2FAUseCase,
+  Enable2FAUseCase,
+  Verify2FAUseCase,
+  Disable2FAUseCase,
+} from "@/app/use-cases";
+import { MailtrapMailingAdapter, TOTPAuthAdapter } from "@/app/adapters";
 import { RedisAuthCache } from "@/infra/cache";
 import { DrizzleUserRepository } from "@/infra/database";
 import { jwtPlugin, pendingJwtPlugin } from "@/infra/http/plugins";
-import { tryCatch } from "@/utils";
-import { TOKEN_MAX_AGE } from "@/constants";
+import { TOKEN_MAX_AGE, PENDING_TOKEN_MAX_AGE } from "@/constants";
 import { env } from "@/env";
 
 export const authRoute = new Elysia({ prefix: "/auth" })
@@ -15,7 +22,10 @@ export const authRoute = new Elysia({ prefix: "/auth" })
   .use(pendingJwtPlugin)
   .post(
     "/magic-link/login",
-    async ({ body, jwt }) => {
+    async ({ body, cookie, jwt }) => {
+      const result = await jwt.verify(cookie.auth.value);
+      if (result) return Response.redirect("http://localhost:3000");
+
       const { username, email } = body;
 
       const jti = ulid();
@@ -35,47 +45,192 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         username: t.String(),
         email: t.String({ format: "email" }),
       }),
+      cookie: t.Cookie({ auth: t.Optional(t.String()) }),
     },
   )
   .get(
     "/magic-link/verify",
     async ({ query, jwt, pendingJwt, cookie }) => {
-      const { token } = query;
+      let { token } = query;
 
-      const [result, jwtError] = await tryCatch(jwt.verify(token));
-      if (!result || jwtError)
+      const result = await jwt.verify(token);
+      console.log(result);
+      if (!result || !result.jti)
         return new Response("Invalid token", { status: 401 });
 
-      const { sub: email, username, jti } = result;
+      const { sub: email, username, jti, exp } = result;
+
+      console.log(exp);
 
       const authCache = new RedisAuthCache();
-      const [isAllowed, cacheError] = await tryCatch(authCache.getStatus(jti));
-      if (!isAllowed || cacheError)
+      const verifyMagicLinkUseCase = new VerifyMagicLinkUseCase(authCache);
+
+      const isAllowed = await verifyMagicLinkUseCase.execute({ jti });
+      if (!isAllowed)
         return new Response("Expired or revoked token", { status: 401 });
 
-      await authCache.removeFromAllowlist(jti);
-
       const userRepository = new DrizzleUserRepository();
-      const user = await userRepository.findByEmail(email);
+      const user = await userRepository.findByEmail(email, true);
       if (!user) {
         const createUserUseCase = new CreateUserUseCase(userRepository);
         await createUserUseCase.execute({ email, username });
       }
-      cookie["auth"].set({
+
+      let maxAge = TOKEN_MAX_AGE;
+      let redirectUrl = env.FRONTEND_URL;
+
+      if (user && user.twoFactorAuthSecret) {
+        token = await pendingJwt.sign({ sub: email, username });
+        maxAge = PENDING_TOKEN_MAX_AGE;
+        redirectUrl = "http://localhost:3000/login?twoFA=true";
+      }
+
+      cookie.auth.set({
         value: token,
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge,
+      });
+
+      return Response.redirect(redirectUrl);
+    },
+    {
+      query: t.Object({ token: t.String() }),
+      cookie: t.Cookie({ auth: t.Optional(t.String()) }),
+    },
+  )
+  .get(
+    "/2fa/setup",
+    async ({ cookie, jwt }) => {
+      const result = await jwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      const { sub: email } = result;
+
+      const userRepository = new DrizzleUserRepository();
+      const authCache = new RedisAuthCache();
+      const totpAdapter = new TOTPAuthAdapter();
+
+      const setup2FAUseCase = new Setup2FAUseCase(
+        userRepository,
+        authCache,
+        totpAdapter,
+      );
+      const { uri, error } = await setup2FAUseCase.execute({ email });
+      if (error) return new Response(error.message, { status: error.status });
+
+      const responseBody = JSON.stringify({ uri: encodeURIComponent(uri) });
+      return new Response(responseBody, { status: 200 });
+    },
+    { cookie: t.Cookie({ auth: t.String() }) },
+  )
+  .post(
+    "/2fa/enable",
+    async ({ body, cookie, jwt }) => {
+      const result = await jwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      const { sub: email } = result;
+      const { code } = body;
+
+      const userRepository = new DrizzleUserRepository();
+      const authCache = new RedisAuthCache();
+      const totpAdapter = new TOTPAuthAdapter();
+
+      const enable2FAUseCase = new Enable2FAUseCase(
+        userRepository,
+        authCache,
+        totpAdapter,
+      );
+      const { success, error } = await enable2FAUseCase.execute({
+        email,
+        code,
+      });
+      if (!success)
+        return new Response(error.message, { status: error.status });
+
+      return new Response(null, { status: 200 });
+    },
+    {
+      body: t.Object({ code: t.String() }),
+      cookie: t.Cookie({ auth: t.String() }),
+    },
+  )
+  .post(
+    "/2fa/verify",
+    async ({ body, cookie, jwt, pendingJwt }) => {
+      const result = await pendingJwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      const { sub: email, username } = result;
+      const { code } = body;
+
+      const userRepository = new DrizzleUserRepository();
+      const totpAdapter = new TOTPAuthAdapter();
+
+      const verify2FAUseCase = new Verify2FAUseCase(
+        userRepository,
+        totpAdapter,
+      );
+      const { success, error } = await verify2FAUseCase.execute({
+        email,
+        code,
+      });
+      if (!success)
+        return new Response(error.message, { status: error.status });
+
+      cookie.auth.set({
+        value: await jwt.sign({ sub: email, username }),
         httpOnly: true,
         sameSite: "lax",
         maxAge: TOKEN_MAX_AGE,
       });
 
-      return Response.redirect(env.FRONTEND_URL);
+      return Response.redirect("http://localhost:3000");
     },
     {
-      query: t.Object({ token: t.String() }),
+      body: t.Object({ code: t.String() }),
+      cookie: t.Cookie({ auth: t.String() }),
     },
   )
-  .post("/2fa/setup", async () => {})
-  .post("/2fa/enable", async () => {})
-  .post("/2fa/verify", async () => {})
-  .post("/2fa/disable", async () => {})
-  .post("/logout", async () => {});
+  .post(
+    "/2fa/disable",
+    async ({ body, cookie, jwt }) => {
+      const result = await jwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      const { sub: email } = result;
+      const { code } = body;
+
+      const userRepository = new DrizzleUserRepository();
+      const totpAdapter = new TOTPAuthAdapter();
+
+      const disable2FAUseCase = new Disable2FAUseCase(
+        userRepository,
+        totpAdapter,
+      );
+      const { success } = await disable2FAUseCase.execute({
+        email,
+        code,
+      });
+      if (!success) return new Response("Invalid code", { status: 401 });
+
+      return new Response(null, { status: 200 });
+    },
+    {
+      body: t.Object({ code: t.String() }),
+      cookie: t.Cookie({ auth: t.String() }),
+    },
+  )
+  .post(
+    "/logout",
+    async ({ cookie, jwt }) => {
+      const result = await jwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      cookie.auth.remove();
+
+      return Response.redirect("http://localhost:3000/login");
+    },
+    { cookie: t.Cookie({ auth: t.String() }) },
+  );

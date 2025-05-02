@@ -13,6 +13,7 @@ export const env = createEnv({
     FRONTEND_URL: z.string().min(1),
     JWT_SECRET: z.string().min(1),
     PENDING_JWT_SECRET: z.string().min(1),
+    CRYPTO_KEY_SECRET: z.string().min(1),
   },
   runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,

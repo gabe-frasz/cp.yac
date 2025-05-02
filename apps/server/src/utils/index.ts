@@ -1,2 +1,3 @@
 export * from "./replace.ts";
 export * from "./try-catch.ts";
+export * from "./crypto.ts";

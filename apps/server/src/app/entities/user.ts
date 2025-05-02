@@ -5,6 +5,7 @@ const userPropsSchema = z.object({
   id: z.ulid().optional().default(ulid),
   email: z.email(),
   username: z.string(),
+  twoFactorAuthSecret: z.string().optional(),
 });
 
 export type UserProps = z.infer<typeof userPropsSchema>;
@@ -31,6 +32,10 @@ export class User {
 
   set username(username: string) {
     this.props.username = username;
+  }
+
+  get twoFactorAuthSecret() {
+    return this.props.twoFactorAuthSecret;
   }
 
   private validate(props: UserPropsConstructor) {

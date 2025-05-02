@@ -2,7 +2,7 @@ import { t } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 
 import { env } from "@/env";
-import { TOKEN_MAX_AGE } from "@/constants";
+import { TOKEN_EXPIRATION } from "@/constants";
 
 export const jwtPlugin = jwt({
   name: "jwt",
@@ -10,7 +10,7 @@ export const jwtPlugin = jwt({
   schema: t.Object({
     sub: t.String({ format: "email" }),
     username: t.String(),
-    jti: t.String(),
+    jti: t.Optional(t.String()),
   }),
-  exp: TOKEN_MAX_AGE,
+  exp: TOKEN_EXPIRATION,
 });
