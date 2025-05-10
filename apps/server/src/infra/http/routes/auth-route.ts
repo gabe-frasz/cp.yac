@@ -220,7 +220,7 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       cookie: t.Cookie({ auth: t.String() }),
     },
   )
-  .post(
+  .delete(
     "/2fa/disable",
     async ({ body, cookie, jwt }) => {
       const result = await jwt.verify(cookie.auth.value);
@@ -258,7 +258,7 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       cookie: t.Cookie({ auth: t.String() }),
     },
   )
-  .post(
+  .delete(
     "/logout",
     async ({ cookie, jwt }) => {
       const result = await jwt.verify(cookie.auth.value);
