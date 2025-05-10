@@ -1,24 +1,19 @@
 import type { UserRepository } from "@/app/repositories";
-import { TOTPAdapter } from "@/app/adapters";
+import type { TOTPAdapter } from "@/app/adapters";
+import type { Result } from "@/utils";
+import { errors } from "./errors";
 
-interface Verify2FARequest {
+interface Request {
   email: string;
   code: string;
 }
 
-type Verify2FAResponse =
-  | {
-      success: true;
-      error: null;
-    }
-  | {
-      success: false;
-      error: {
-        name: "invalid-code";
-        message: "Invalid code";
-        status: 401;
-      };
-    };
+type Error =
+  | typeof errors.USER_NOT_FOUND
+  | typeof errors.USER_2FA_DISABLED
+  | typeof errors.INVALID_TOTP;
+
+type Response = true;
 
 export class Verify2FAUseCase {
   constructor(
@@ -26,26 +21,14 @@ export class Verify2FAUseCase {
     private totpAdapter: TOTPAdapter,
   ) {}
 
-  async execute({ email, code }: Verify2FARequest): Promise<Verify2FAResponse> {
+  async execute({ email, code }: Request): Promise<Result<Response, Error>> {
     const user = await this.userRepository.findByEmail(email, true);
-    if (!user)
-      return {
-        success: false,
-        error: { name: "invalid-code", message: "Invalid code", status: 401 },
-      };
-    if (!user.twoFactorAuthSecret)
-      return {
-        success: false,
-        error: { name: "invalid-code", message: "Invalid code", status: 401 },
-      };
+    if (!user) return [null, errors.USER_NOT_FOUND];
+    if (!user.twoFactorAuthSecret) return [null, errors.USER_2FA_DISABLED];
 
     const ok = this.totpAdapter.verify(code, user.twoFactorAuthSecret);
-    if (!ok)
-      return {
-        success: false,
-        error: { name: "invalid-code", message: "Invalid code", status: 401 },
-      };
+    if (!ok) return [null, errors.INVALID_TOTP];
 
-    return { success: true, error: null };
+    return [true, null];
   }
 }

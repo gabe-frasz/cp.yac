@@ -1,6 +1,6 @@
 import type { MailingAdapter } from "@/app/adapters";
 
-interface SendMagicLinkRequest {
+interface Request {
   email: string;
   token: string;
 }
@@ -8,7 +8,7 @@ interface SendMagicLinkRequest {
 export class SendMagicLinkUseCase {
   constructor(private mailer: MailingAdapter) {}
 
-  async execute({ email, token }: SendMagicLinkRequest) {
+  async execute({ email, token }: Request) {
     const link = `http://localhost:3333/auth/magic-link/verify?token=${token}`;
     await this.mailer.send({ to: email, html: link });
   }

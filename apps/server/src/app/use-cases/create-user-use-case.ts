@@ -1,7 +1,7 @@
 import { User } from "@/app/entities";
 import type { UserRepository } from "@/app/repositories";
 
-interface CreateUserUseCaseRequest {
+interface Request {
   email: string;
   username: string;
 }
@@ -9,7 +9,7 @@ interface CreateUserUseCaseRequest {
 export class CreateUserUseCase {
   constructor(private userRepository: UserRepository) {}
 
-  async execute(request: CreateUserUseCaseRequest) {
+  async execute(request: Request) {
     const { email, username } = request;
     const user = new User({ email, username });
     await this.userRepository.create(user);

@@ -58,9 +58,7 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       if (!result || !result.jti)
         return new Response("Invalid token", { status: 401 });
 
-      const { sub: email, username, jti, exp } = result;
-
-      console.log(exp);
+      const { sub: email, username, jti } = result;
 
       const authCache = new RedisAuthCache();
       const verifyMagicLinkUseCase = new VerifyMagicLinkUseCase(authCache);
@@ -116,10 +114,23 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         authCache,
         totpAdapter,
       );
-      const { uri, error } = await setup2FAUseCase.execute({ email });
-      if (error) return new Response(error.message, { status: error.status });
+      const [data, error] = await setup2FAUseCase.execute({ email });
 
-      const responseBody = JSON.stringify({ uri: encodeURIComponent(uri) });
+      if (error) {
+        switch (error.name) {
+          case "USER_NOT_FOUND":
+            return new Response("Internal server error", { status: 500 });
+          case "USER_2FA_ALREADY_ENABLED":
+            return new Response(error.message, {
+              status: 400,
+            });
+        }
+      }
+
+      const responseBody = JSON.stringify({
+        uri: encodeURIComponent(data.uri),
+      });
+
       return new Response(responseBody, { status: 200 });
     },
     { cookie: t.Cookie({ auth: t.String() }) },
@@ -142,12 +153,20 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         authCache,
         totpAdapter,
       );
-      const { success, error } = await enable2FAUseCase.execute({
+      const [success, error] = await enable2FAUseCase.execute({
         email,
         code,
       });
-      if (!success)
-        return new Response(error.message, { status: error.status });
+
+      if (!success) {
+        switch (error.name) {
+          case "USER_NOT_FOUND":
+            return new Response("Internal server error", { status: 500 });
+          case "INVALID_TOTP":
+          case "EXPIRED_TOTP":
+            return new Response(error.message, { status: 401 });
+        }
+      }
 
       return new Response(null, { status: 200 });
     },
@@ -172,12 +191,20 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         userRepository,
         totpAdapter,
       );
-      const { success, error } = await verify2FAUseCase.execute({
+      const [success, error] = await verify2FAUseCase.execute({
         email,
         code,
       });
-      if (!success)
-        return new Response(error.message, { status: error.status });
+
+      if (!success) {
+        switch (error.name) {
+          case "USER_NOT_FOUND":
+          case "USER_2FA_DISABLED":
+            return new Response("Internal server error", { status: 500 });
+          case "INVALID_TOTP":
+            return new Response("Invalid code", { status: 401 });
+        }
+      }
 
       cookie.auth.set({
         value: await jwt.sign({ sub: email, username }),
@@ -209,11 +236,20 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         userRepository,
         totpAdapter,
       );
-      const { success } = await disable2FAUseCase.execute({
+      const [success, error] = await disable2FAUseCase.execute({
         email,
         code,
       });
-      if (!success) return new Response("Invalid code", { status: 401 });
+
+      if (!success) {
+        switch (error.name) {
+          case "USER_NOT_FOUND":
+          case "USER_2FA_DISABLED":
+            return new Response("Internal server error", { status: 500 });
+          case "INVALID_TOTP":
+            return new Response("Invalid code", { status: 401 });
+        }
+      }
 
       return new Response(null, { status: 200 });
     },
