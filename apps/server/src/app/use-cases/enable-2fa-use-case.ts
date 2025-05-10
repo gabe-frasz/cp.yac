@@ -35,7 +35,7 @@ export class Enable2FAUseCase {
 
     await this.authCache.removeFrom2FAAllowlist(user.id);
     await this.authCache.remove2FASecret(user.id);
-    await this.userRepository.enableTwoFactorAuth(user.id, secret);
+    await this.userRepository.enable2FA(user.id, secret);
 
     return [true, null];
   }

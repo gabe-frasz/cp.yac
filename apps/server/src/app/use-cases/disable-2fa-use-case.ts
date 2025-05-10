@@ -30,7 +30,7 @@ export class Disable2FAUseCase {
     const isValid = this.totpAdapter.verify(code, user.twoFactorAuthSecret);
     if (!isValid) return [null, errors.INVALID_TOTP];
 
-    await this.userRepository.disableTwoFactorAuth(email);
+    await this.userRepository.disable2FA(email);
 
     return [true, null];
   }

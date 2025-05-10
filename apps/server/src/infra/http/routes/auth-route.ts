@@ -9,6 +9,9 @@ import {
   Enable2FAUseCase,
   Verify2FAUseCase,
   Disable2FAUseCase,
+  GenerateBackupCodesUseCase,
+  RemoveBackupCodesUseCase,
+  VerifyBackupCodeUseCase,
 } from "@/app/use-cases";
 import { MailtrapMailingAdapter, TOTPAuthAdapter } from "@/app/adapters";
 import { RedisAuthCache } from "@/infra/cache";
@@ -153,22 +156,40 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         authCache,
         totpAdapter,
       );
-      const [success, error] = await enable2FAUseCase.execute({
+      const [success, enable2FAError] = await enable2FAUseCase.execute({
         email,
         code,
       });
 
       if (!success) {
-        switch (error.name) {
+        switch (enable2FAError.name) {
           case "USER_NOT_FOUND":
             return new Response("Internal server error", { status: 500 });
           case "INVALID_TOTP":
           case "EXPIRED_TOTP":
-            return new Response(error.message, { status: 401 });
+            return new Response(enable2FAError.message, { status: 401 });
         }
       }
 
-      return new Response(null, { status: 200 });
+      const generateBackupCodesUseCase = new GenerateBackupCodesUseCase(
+        userRepository,
+      );
+      const [backupCodes, generateBackupCodesError] =
+        await generateBackupCodesUseCase.execute({ email });
+
+      if (generateBackupCodesError) {
+        switch (generateBackupCodesError.name) {
+          case "USER_NOT_FOUND":
+            return new Response("Internal server error", { status: 500 });
+          case "USER_2FA_DISABLED":
+            return new Response(generateBackupCodesError.message, {
+              status: 400,
+            });
+        }
+      }
+
+      const responseBody = JSON.stringify({ backupCodes });
+      return new Response(responseBody, { status: 200 });
     },
     {
       body: t.Object({ code: t.String() }),
@@ -236,13 +257,13 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         userRepository,
         totpAdapter,
       );
-      const [success, error] = await disable2FAUseCase.execute({
+      const [disabled, disable2FAError] = await disable2FAUseCase.execute({
         email,
         code,
       });
 
-      if (!success) {
-        switch (error.name) {
+      if (!disabled) {
+        switch (disable2FAError.name) {
           case "USER_NOT_FOUND":
           case "USER_2FA_DISABLED":
             return new Response("Internal server error", { status: 500 });
@@ -251,10 +272,105 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         }
       }
 
+      const removeBackupCodesUseCase = new RemoveBackupCodesUseCase(
+        userRepository,
+      );
+      const [removed, removeBackupCodesError] =
+        await removeBackupCodesUseCase.execute({ email });
+
+      if (!removed) {
+        switch (removeBackupCodesError.name) {
+          case "USER_NOT_FOUND":
+          case "USER_2FA_DISABLED":
+            return new Response("Internal server error", { status: 500 });
+        }
+      }
+
       return new Response(null, { status: 200 });
     },
     {
       body: t.Object({ code: t.String() }),
+      cookie: t.Cookie({ auth: t.String() }),
+    },
+  )
+  .post(
+    "/backup-codes/verify",
+    async ({ body, cookie, pendingJwt }) => {
+      const result = await pendingJwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      const { sub: email } = result;
+      const { code } = body;
+
+      const userRepository = new DrizzleUserRepository();
+      const verifyBackupCodeUseCase = new VerifyBackupCodeUseCase(
+        userRepository,
+      );
+      const [success, error] = await verifyBackupCodeUseCase.execute({
+        email,
+        code,
+      });
+
+      if (error) {
+        switch (error.name) {
+          case "USER_NOT_FOUND":
+          case "USER_2FA_DISABLED":
+            return new Response("Internal server error", { status: 500 });
+        }
+      }
+
+      if (!success) return new Response("Invalid code", { status: 401 });
+
+      return Response.redirect("http://localhost:3000");
+    },
+    {
+      body: t.Object({ code: t.String() }),
+      cookie: t.Cookie({ auth: t.String() }),
+    },
+  )
+  .post(
+    "/backup-codes/reset",
+    async ({ cookie, jwt }) => {
+      const result = await jwt.verify(cookie.auth.value);
+      if (!result) return new Response("Invalid token", { status: 401 });
+
+      const { sub: email } = result;
+
+      const userRepository = new DrizzleUserRepository();
+      const removeBackupCodesUseCase = new RemoveBackupCodesUseCase(
+        userRepository,
+      );
+      const [removed, removeBackupCodesError] =
+        await removeBackupCodesUseCase.execute({ email });
+
+      if (!removed) {
+        switch (removeBackupCodesError.name) {
+          case "USER_NOT_FOUND":
+            return new Response("Internal server error", { status: 500 });
+          case "USER_2FA_DISABLED":
+            return new Response(removeBackupCodesError.message, {
+              status: 400,
+            });
+        }
+      }
+
+      const generateBackupCodesUseCase = new GenerateBackupCodesUseCase(
+        userRepository,
+      );
+      const [backupCodes, generateBackupCodesError] =
+        await generateBackupCodesUseCase.execute({ email });
+
+      if (generateBackupCodesError) {
+        switch (generateBackupCodesError.name) {
+          case "USER_NOT_FOUND":
+          case "USER_2FA_DISABLED":
+            return new Response("Internal server error", { status: 500 });
+        }
+      }
+
+      return new Response(JSON.stringify({ backupCodes }), { status: 200 });
+    },
+    {
       cookie: t.Cookie({ auth: t.String() }),
     },
   )

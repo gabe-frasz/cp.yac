@@ -5,3 +5,6 @@ export * from "./setup-2fa-use-case";
 export * from "./enable-2fa-use-case";
 export * from "./verify-2fa-use-case";
 export * from "./disable-2fa-use-case";
+export * from "./generate-backup-codes-use-case";
+export * from "./remove-backup-codes-use-case";
+export * from "./verify-backup-code-use-case";

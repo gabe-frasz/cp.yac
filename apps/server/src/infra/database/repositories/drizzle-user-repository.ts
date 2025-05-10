@@ -1,11 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { User } from "@/app/entities";
 import type { UserRepository } from "@/app/repositories";
 import { DrizzleUserMapper } from "@/infra/database";
 import { drizzle } from "@/lib";
 import { encrypt } from "@/utils";
-import { usersTable, twoFactorAuthTable } from "~/schema";
+import { usersTable, twoFactorAuthTable, backupCodesTable } from "~/schema";
 
 export class DrizzleUserRepository implements UserRepository {
   async findById(id: string, include2FA?: boolean) {
@@ -54,16 +54,53 @@ export class DrizzleUserRepository implements UserRepository {
     });
   }
 
-  async enableTwoFactorAuth(userId: string, secret: string) {
+  async enable2FA(userId: string, secret: string) {
     await drizzle.insert(twoFactorAuthTable).values({
       userId,
       secret: encrypt(secret),
     });
   }
 
-  async disableTwoFactorAuth(userId: string) {
+  async disable2FA(userId: string) {
     await drizzle
       .delete(twoFactorAuthTable)
       .where(eq(twoFactorAuthTable.userId, userId));
+  }
+
+  async getBackupCodes(userId: string) {
+    const codes = await drizzle
+      .select()
+      .from(backupCodesTable)
+      .where(eq(backupCodesTable.userId, userId));
+
+    if (codes.length === 0) return null;
+
+    return codes.map((code) => code.code);
+  }
+
+  async createBackupCodes(userId: string, codes: string[]) {
+    const values = codes.map((code) => ({
+      userId,
+      code: Bun.password.hashSync(code),
+    }));
+
+    await drizzle.insert(backupCodesTable).values(values);
+  }
+
+  async deleteOneBackupCode(userId: string, code: string) {
+    await drizzle
+      .delete(backupCodesTable)
+      .where(
+        and(
+          eq(backupCodesTable.userId, userId),
+          eq(backupCodesTable.code, code),
+        ),
+      );
+  }
+
+  async deleteAllBackupCodes(userId: string) {
+    await drizzle
+      .delete(backupCodesTable)
+      .where(eq(backupCodesTable.userId, userId));
   }
 }

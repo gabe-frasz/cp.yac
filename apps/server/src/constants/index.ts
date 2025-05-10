@@ -16,3 +16,8 @@ export const PENDING_TOKEN_EXPIRATION = "5m";
 
 // totp
 export const TOTP_ISSUER = "yac";
+
+// backup codes
+export const BACKUP_CODES_QUANTITY = 10;
+export const BACKUP_CODE_SIZE = 8;
+export const ALPHABET_PLUS_NUMBERS_LENGTH = 36;
