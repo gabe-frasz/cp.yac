@@ -22,10 +22,10 @@ export class VerifyBackupCodeUseCase {
     const codes = await this.userRepository.getBackupCodes(user.id);
     if (!codes) return [null, errors.USER_2FA_DISABLED];
 
-    const isValid = codes.some((c) => Bun.password.verifySync(code, c));
-    if (!isValid) return [false, null];
+    const codeId = codes.find((c) => Bun.password.verifySync(code, c.code))?.id;
+    if (!codeId) return [false, null];
 
-    await this.userRepository.deleteOneBackupCode(user.id, code);
+    await this.userRepository.deleteOneBackupCode(codeId);
 
     return [true, null];
   }

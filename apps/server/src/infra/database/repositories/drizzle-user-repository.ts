@@ -75,7 +75,7 @@ export class DrizzleUserRepository implements UserRepository {
 
     if (codes.length === 0) return null;
 
-    return codes.map((code) => code.code);
+    return codes.map((code) => ({ id: code.id, code: code.code }));
   }
 
   async createBackupCodes(userId: string, codes: string[]) {
@@ -87,15 +87,10 @@ export class DrizzleUserRepository implements UserRepository {
     await drizzle.insert(backupCodesTable).values(values);
   }
 
-  async deleteOneBackupCode(userId: string, code: string) {
+  async deleteOneBackupCode(codeId: number) {
     await drizzle
       .delete(backupCodesTable)
-      .where(
-        and(
-          eq(backupCodesTable.userId, userId),
-          eq(backupCodesTable.code, code),
-        ),
-      );
+      .where(eq(backupCodesTable.id, codeId));
   }
 
   async deleteAllBackupCodes(userId: string) {
