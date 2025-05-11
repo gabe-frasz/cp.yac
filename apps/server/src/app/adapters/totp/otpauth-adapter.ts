@@ -24,4 +24,14 @@ export class TOTPAuthAdapter implements TOTPAdapter {
     const delta = totp.validate({ token, window: 1 });
     return delta !== null;
   }
+
+  getURI(username: string, secret: string) {
+    const totp = new TOTP({
+      issuer: TOTP_ISSUER.toUpperCase(),
+      label: `${username}`,
+      secret: Secret.fromHex(secret),
+    });
+
+    return totp.toString();
+  }
 }
