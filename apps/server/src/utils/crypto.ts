@@ -1,8 +1,16 @@
-import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  createCipheriv,
+  createDecipheriv,
+} from "node:crypto";
 
 import { env } from "@/env";
 
-const key = Buffer.from(env.CRYPTO_KEY_SECRET, "base64");
+const key = createHash("sha256")
+  .update(env.CRYPTO_KEY_SECRET)
+  .digest("base64")
+  .substring(0, 32);
 
 export function encrypt(plaintext: string) {
   const iv = randomBytes(16);
