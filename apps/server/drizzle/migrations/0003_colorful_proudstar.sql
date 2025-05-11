@@ -1,0 +1,1 @@
+ALTER TABLE "backup_codes" DROP CONSTRAINT "backup_codes_user_id_unique";

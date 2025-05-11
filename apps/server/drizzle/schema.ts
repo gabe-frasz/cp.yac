@@ -46,7 +46,6 @@ export const backupCodesTable = pgTable("backup_codes", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id")
     .references(() => usersTable.id, { onDelete: "cascade" })
-    .unique()
     .notNull(),
   code: varchar("code").notNull(),
 });
