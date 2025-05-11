@@ -57,7 +57,6 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       let { token } = query;
 
       const result = await jwt.verify(token);
-      console.log(result);
       if (!result || !result.jti)
         return new Response("Invalid token", { status: 401 });
 
@@ -295,11 +294,11 @@ export const authRoute = new Elysia({ prefix: "/auth" })
   )
   .post(
     "/backup-codes/verify",
-    async ({ body, cookie, pendingJwt }) => {
+    async ({ body, cookie, jwt, pendingJwt }) => {
       const result = await pendingJwt.verify(cookie.auth.value);
       if (!result) return new Response("Invalid token", { status: 401 });
 
-      const { sub: email } = result;
+      const { sub: email, username } = result;
       const { code } = body;
 
       const userRepository = new DrizzleUserRepository();
@@ -320,6 +319,13 @@ export const authRoute = new Elysia({ prefix: "/auth" })
       }
 
       if (!success) return new Response("Invalid code", { status: 401 });
+
+      cookie.auth.set({
+        value: await jwt.sign({ sub: email, username }),
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: TOKEN_MAX_AGE,
+      });
 
       return Response.redirect("http://localhost:3000");
     },
