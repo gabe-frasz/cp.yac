@@ -6,10 +6,10 @@
     "paths": {
       "@/app/*": ["src/app/*"],
       "@/infra/*": ["src/infra/*"],
-      "@/env": ["src/env/index.ts"],
       "@/lib": ["src/lib/index.ts"],
       "@/utils": ["src/utils/index.ts"],
-      "@/constants": ["src/constants/index.ts"],
+      "@/env": ["src/env.ts"],
+      "@/constants": ["src/constants.ts"],
       "~/schema": ["drizzle/schema.ts"]
     }
   },

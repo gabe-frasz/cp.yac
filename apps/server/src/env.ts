@@ -14,6 +14,8 @@ export const env = createEnv({
     JWT_SECRET: z.string().min(1),
     PENDING_JWT_SECRET: z.string().min(1),
     CRYPTO_KEY_SECRET: z.string().min(1),
+    STREAM_API_KEY: z.string().min(1),
+    STREAM_API_SECRET: z.string().min(1),
   },
   runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,

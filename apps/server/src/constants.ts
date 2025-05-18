@@ -21,3 +21,6 @@ export const TOTP_ISSUER = "yac";
 export const BACKUP_CODES_QUANTITY = 10;
 export const BACKUP_CODE_SIZE = 8;
 export const ALPHABET_PLUS_NUMBERS_LENGTH = 36;
+
+// chat
+export const AI_AGENT_CHAT_ID = "ai-agent";
