@@ -16,6 +16,7 @@ export const env = createEnv({
     CRYPTO_KEY_SECRET: z.string().min(1),
     STREAM_API_KEY: z.string().min(1),
     STREAM_API_SECRET: z.string().min(1),
+    GEMINI_API_KEY: z.string().min(1),
   },
   runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,

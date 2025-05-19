@@ -17,6 +17,7 @@
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/jwt": "^1.2.0",
     "@elysiajs/swagger": "^1.2.2",
+    "@google/genai": "^0.15.0",
     "@t3-oss/env-core": "^0.12.0",
     "@upstash/redis": "^1.34.8",
     "drizzle-orm": "^0.41.0",
