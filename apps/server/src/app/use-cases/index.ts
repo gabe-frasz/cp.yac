@@ -8,3 +8,4 @@ export * from "./disable-2fa-use-case";
 export * from "./generate-backup-codes-use-case";
 export * from "./remove-backup-codes-use-case";
 export * from "./verify-backup-code-use-case";
+export * from "./send-user-message-use-case";
