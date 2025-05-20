@@ -11,6 +11,10 @@ export const errors = {
     name: "USER_2FA_ALREADY_ENABLED",
     message: "User already has 2FA enabled",
   },
+  USER_NOT_IN_CHAT: {
+    name: "USER_NOT_IN_CHAT",
+    message: "User is not in chat",
+  },
   INVALID_TOTP: {
     name: "INVALID_TOTP",
     message: "Invalid TOTP code",
