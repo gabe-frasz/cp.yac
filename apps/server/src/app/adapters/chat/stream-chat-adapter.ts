@@ -4,17 +4,21 @@ import { stream } from "@/lib";
 import type { ChatAdapter } from "./adapter";
 
 export class StreamChatAdapter implements ChatAdapter {
-  async findUserById(userId: string) {
-    const { users } = await stream.queryUsers({ id: userId });
-    return users.length > 0;
-  }
-
   async upsertUser(user: User) {
     await stream.upsertUser({
       id: user.id,
       username: user.username,
       role: "user",
     });
+  }
+
+  async isUserInChat(userId: string, chatId: string) {
+    const channels = await stream.queryChannels({
+      id: chatId,
+      type: "messaging",
+      members: { $in: [userId] },
+    });
+    return channels.length > 0;
   }
 
   async createChat(chatId: string, userId: string) {

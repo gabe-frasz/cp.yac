@@ -19,7 +19,7 @@ type Response = {
   chatId: string;
 };
 
-type Error = typeof errors.USER_NOT_FOUND;
+type Error = typeof errors.USER_NOT_FOUND | typeof errors.USER_NOT_IN_CHAT;
 
 export class SendUserMessageUseCase {
   constructor(
@@ -34,11 +34,13 @@ export class SendUserMessageUseCase {
     const user = await this.userRepository.findByEmail(email);
     if (!user) return err(errors.USER_NOT_FOUND);
 
-    const chatUserExists = await this.chatAdapter.findUserById(user.id);
-    if (!chatUserExists) await this.chatAdapter.upsertUser(user);
+    await this.chatAdapter.upsertUser(user);
 
     const chatId = request.chatId ?? ulid();
     if (!request.chatId) await this.chatAdapter.createChat(chatId, user.id);
+
+    if (!this.chatAdapter.isUserInChat(user.id, chatId))
+      return err(errors.USER_NOT_IN_CHAT);
 
     const domainMessage = new Message({
       senderId: user.id,

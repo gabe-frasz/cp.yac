@@ -43,6 +43,8 @@ export const messagesRoute = new Elysia({ prefix: "/messages" })
 
       if (error) {
         switch (error.name) {
+          case "USER_NOT_IN_CHAT":
+            return new Response(error.message, { status: 401 });
           case "USER_NOT_FOUND":
             return new Response("Internal Server Error", { status: 500 });
         }
