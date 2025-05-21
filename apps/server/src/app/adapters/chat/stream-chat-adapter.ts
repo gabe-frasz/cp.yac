@@ -1,5 +1,5 @@
-import type { User, Message } from "@/app/entities";
-import { AI_AGENT_CHAT_ID } from "@/constants";
+import { type User, Message } from "@/app/entities";
+import { AI_AGENT_CHAT_ID, MAX_MESSAGES_PER_REQUEST } from "@/constants";
 import { stream } from "@/lib";
 import type { ChatAdapter } from "./adapter";
 
@@ -31,6 +31,31 @@ export class StreamChatAdapter implements ChatAdapter {
         created_by_id: userId,
       })
       .create();
+  }
+
+  async getChatHistory(chatId: string, offset: number = 0) {
+    const channel = stream.getChannelById("messaging", chatId, {});
+    const lastMessage = channel.lastMessage();
+    if (!lastMessage) return [];
+
+    const { messages } = await channel.query({
+      messages: {
+        limit: MAX_MESSAGES_PER_REQUEST,
+        offset,
+        id_lte: lastMessage.id,
+      },
+    });
+
+    // TODO: handle undefined keys
+
+    return messages.map(
+      (message) =>
+        new Message({
+          id: message.id,
+          senderId: message.user_id!,
+          text: message.text!,
+        }),
+    );
   }
 
   async sendMessage(chatId: string, message: Message) {

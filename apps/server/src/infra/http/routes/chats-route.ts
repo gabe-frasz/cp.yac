@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 
 import { Message } from "@/app/entities";
-import { SendUserMessageUseCase } from "@/app/use-cases";
+import { SendUserMessageUseCase, GetChatHistoryUseCase } from "@/app/use-cases";
 import { GeminiAIAgentAdapter, StreamChatAdapter } from "@/app/adapters";
 import { DrizzleUserRepository } from "@/infra/database";
 import { jwtPlugin } from "@/infra/http/plugins";
@@ -21,8 +21,36 @@ export const chatsRoute = new Elysia({ prefix: "/chats" })
     const result = await jwt.verify(cookie.auth.value);
     return { userEmail: !result ? "" : result.sub };
   })
-  .get("/:chatId/messages", async ({ params }) => {
-    console.log(params);
+  .get("/:chatId/messages", async ({ params, userEmail }) => {
+    const { chatId } = params;
+
+    const userRepository = new DrizzleUserRepository();
+    const chatAdapter = new StreamChatAdapter();
+
+    const getChatHistoryUseCase = new GetChatHistoryUseCase(
+      userRepository,
+      chatAdapter,
+    );
+    const [response, error] = await getChatHistoryUseCase.execute({
+      chatId,
+      email: userEmail,
+    });
+
+    if (error) {
+      switch (error.name) {
+        case "USER_NOT_IN_CHAT":
+          return new Response(error.message, { status: 401 });
+        case "USER_NOT_FOUND":
+          return new Response("Internal Server Error", { status: 500 });
+      }
+    }
+
+    const responseBody = JSON.stringify(response.chatHistory);
+
+    return new Response(responseBody, {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   })
   .post(
     "/:chatId?/messages",

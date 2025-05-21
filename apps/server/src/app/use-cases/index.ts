@@ -9,3 +9,4 @@ export * from "./generate-backup-codes-use-case";
 export * from "./remove-backup-codes-use-case";
 export * from "./verify-backup-code-use-case";
 export * from "./send-user-message-use-case";
+export * from "./get-chat-history-use-case";
