@@ -7,6 +7,7 @@ import { errors } from "./errors";
 type Request = {
   email: string;
   chatId: string;
+  offset?: number;
 };
 
 type Response = {
@@ -22,7 +23,7 @@ export class GetChatHistoryUseCase {
   ) {}
 
   async execute(request: Request): Promise<Result<Response, Error>> {
-    const { email, chatId } = request;
+    const { email, chatId, offset } = request;
 
     const user = await this.userRepository.findByEmail(email);
     if (!user) return err(errors.USER_NOT_FOUND);
@@ -30,7 +31,7 @@ export class GetChatHistoryUseCase {
     if (!(await this.chatAdapter.isUserInChat(user.id, chatId)))
       return err(errors.USER_NOT_IN_CHAT);
 
-    const chatHistory = await this.chatAdapter.getChatHistory(chatId);
+    const chatHistory = await this.chatAdapter.getChatHistory(chatId, offset);
 
     return ok({ chatHistory });
   }

@@ -5,7 +5,7 @@ import { SendUserMessageUseCase, GetChatHistoryUseCase } from "@/app/use-cases";
 import { GeminiAIAgentAdapter, StreamChatAdapter } from "@/app/adapters";
 import { DrizzleUserRepository } from "@/infra/database";
 import { jwtPlugin } from "@/infra/http/plugins";
-import { AI_AGENT_CHAT_ID } from "@/constants";
+import { AI_AGENT_CHAT_ID, MAX_MESSAGES_OFFSET } from "@/app/constants";
 
 export const chatsRoute = new Elysia({ prefix: "/chats" })
   .use(jwtPlugin)
@@ -21,37 +21,49 @@ export const chatsRoute = new Elysia({ prefix: "/chats" })
     const result = await jwt.verify(cookie.auth.value);
     return { userEmail: !result ? "" : result.sub };
   })
-  .get("/:chatId/messages", async ({ params, userEmail }) => {
-    const { chatId } = params;
+  .get(
+    "/:chatId/messages",
+    async ({ params, query, userEmail }) => {
+      const { chatId } = params;
+      const { offset } = query;
 
-    const userRepository = new DrizzleUserRepository();
-    const chatAdapter = new StreamChatAdapter();
+      const userRepository = new DrizzleUserRepository();
+      const chatAdapter = new StreamChatAdapter();
 
-    const getChatHistoryUseCase = new GetChatHistoryUseCase(
-      userRepository,
-      chatAdapter,
-    );
-    const [response, error] = await getChatHistoryUseCase.execute({
-      chatId,
-      email: userEmail,
-    });
+      const getChatHistoryUseCase = new GetChatHistoryUseCase(
+        userRepository,
+        chatAdapter,
+      );
+      const [response, error] = await getChatHistoryUseCase.execute({
+        email: userEmail,
+        chatId,
+        offset,
+      });
 
-    if (error) {
-      switch (error.name) {
-        case "USER_NOT_IN_CHAT":
-          return new Response(error.message, { status: 401 });
-        case "USER_NOT_FOUND":
-          return new Response("Internal Server Error", { status: 500 });
+      if (error) {
+        switch (error.name) {
+          case "USER_NOT_IN_CHAT":
+            return new Response(error.message, { status: 401 });
+          case "USER_NOT_FOUND":
+            return new Response("Internal Server Error", { status: 500 });
+        }
       }
-    }
 
-    const responseBody = JSON.stringify(response.chatHistory);
+      const responseBody = JSON.stringify(response.chatHistory);
 
-    return new Response(responseBody, {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  })
+      return new Response(responseBody, {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    {
+      query: t.Object({
+        offset: t.Optional(
+          t.Number({ minimum: 0, maximum: MAX_MESSAGES_OFFSET, default: 0 }),
+        ),
+      }),
+    },
+  )
   .post(
     "/:chatId?/messages",
     async function* ({ params, body, userEmail }) {

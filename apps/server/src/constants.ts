@@ -25,3 +25,4 @@ export const ALPHABET_PLUS_NUMBERS_LENGTH = 36;
 // chat
 export const AI_AGENT_CHAT_ID = "ai-agent";
 export const MAX_MESSAGES_PER_REQUEST = 100;
+export const MAX_MESSAGES_OFFSET = 10_000;
