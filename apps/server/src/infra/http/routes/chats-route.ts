@@ -7,7 +7,7 @@ import { DrizzleUserRepository } from "@/infra/database";
 import { jwtPlugin } from "@/infra/http/plugins";
 import { AI_AGENT_CHAT_ID } from "@/constants";
 
-export const messagesRoute = new Elysia({ prefix: "/messages" })
+export const chatsRoute = new Elysia({ prefix: "/chats" })
   .use(jwtPlugin)
   .guard({
     cookie: t.Cookie({ auth: t.String() }),
@@ -21,10 +21,14 @@ export const messagesRoute = new Elysia({ prefix: "/messages" })
     const result = await jwt.verify(cookie.auth.value);
     return { userEmail: !result ? "" : result.sub };
   })
+  .get("/:chatId/messages", async ({ params }) => {
+    console.log(params);
+  })
   .post(
-    "/",
-    async function* ({ body, userEmail }) {
-      const { chatId, text } = body;
+    "/:chatId?/messages",
+    async function* ({ params, body, userEmail }) {
+      const { chatId } = params;
+      const { text } = body;
 
       const userRepository = new DrizzleUserRepository();
       const chatAdapter = new StreamChatAdapter();
@@ -65,6 +69,6 @@ export const messagesRoute = new Elysia({ prefix: "/messages" })
       await chatAdapter.sendMessage(response.chatId, aiMessage);
     },
     {
-      body: t.Object({ chatId: t.Optional(t.String()), text: t.String() }),
+      body: t.Object({ text: t.String() }),
     },
   );

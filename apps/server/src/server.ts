@@ -1,18 +1,13 @@
 import { Elysia } from "elysia";
 
-import {
-  authRoute,
-  messagesRoute,
-  corsPlugin,
-  openApiPlugin,
-} from "@/infra/http";
+import { authRoute, chatsRoute, corsPlugin, openApiPlugin } from "@/infra/http";
 import { env } from "@/env";
 
 const app = new Elysia()
   .use(corsPlugin)
   .use(openApiPlugin)
   .use(authRoute)
-  .use(messagesRoute)
+  .use(chatsRoute)
   .listen(env.PORT);
 
 console.log(
