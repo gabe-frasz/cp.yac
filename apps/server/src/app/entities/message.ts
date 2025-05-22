@@ -31,6 +31,10 @@ export class Message {
     return this.props.text;
   }
 
+  toString() {
+    return `${this.senderId}: ${this.text}`;
+  }
+
   private validate(props: MessageConstructorProps) {
     const { success, error, data } = messageSchema.safeParse(props);
     if (!success) throw new Error(z.prettifyError(error));
