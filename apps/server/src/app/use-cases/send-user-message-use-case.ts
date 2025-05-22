@@ -29,7 +29,7 @@ export class SendUserMessageUseCase {
   ) {}
 
   async execute(request: Request): Promise<Result<Response, Error>> {
-    const { email, message } = request;
+    const { email, message: userMessage } = request;
 
     const user = await this.userRepository.findByEmail(email);
     if (!user) return err(errors.USER_NOT_FOUND);
@@ -42,14 +42,21 @@ export class SendUserMessageUseCase {
     if (!this.chatAdapter.isUserInChat(user.id, chatId))
       return err(errors.USER_NOT_IN_CHAT);
 
-    const domainMessage = new Message({
+    const chatMessages = await this.chatAdapter.getChatHistory(chatId);
+    const stringifiedMessages = chatMessages
+      .map((message) => message.toString())
+      .join("\n");
+
+    const messageToSend = new Message({
       senderId: user.id,
-      text: message.text,
+      text: userMessage.text,
     });
 
-    await this.chatAdapter.sendMessage(chatId, domainMessage);
+    await this.chatAdapter.sendMessage(chatId, messageToSend);
 
-    const response = await this.aiAgentAdapter.getResponse(domainMessage);
+    const response = await this.aiAgentAdapter.getResponse(messageToSend, {
+      context: stringifiedMessages,
+    });
 
     return ok({
       aiResponse: response as AsyncGenerator<{ text: string }>,
