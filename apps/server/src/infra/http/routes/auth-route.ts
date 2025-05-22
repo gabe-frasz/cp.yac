@@ -25,14 +25,14 @@ export const authRoute = new Elysia({ prefix: "/auth" })
   .use(pendingJwtPlugin)
   .post(
     "/magic-link/login",
-    async ({ body, cookie, jwt }) => {
+    async ({ body, cookie, jwt, pendingJwt }) => {
       const result = await jwt.verify(cookie.auth.value);
       if (result) return Response.redirect("http://localhost:3000");
 
       const { username, email } = body;
 
       const jti = ulid();
-      const token = await jwt.sign({ sub: email, username, jti });
+      const token = await pendingJwt.sign({ sub: email, username, jti });
 
       const authCache = new RedisAuthCache();
       await authCache.addToAllowlist(jti);
@@ -56,15 +56,15 @@ export const authRoute = new Elysia({ prefix: "/auth" })
     async ({ query, jwt, pendingJwt, cookie }) => {
       let { token } = query;
 
-      const result = await jwt.verify(token);
+      const result = await pendingJwt.verify(token);
       if (!result || !result.jti)
         return new Response("Invalid token", { status: 401 });
 
       const { sub: email, username, jti } = result;
 
       const authCache = new RedisAuthCache();
-      const verifyMagicLinkUseCase = new VerifyMagicLinkUseCase(authCache);
 
+      const verifyMagicLinkUseCase = new VerifyMagicLinkUseCase(authCache);
       const isAllowed = await verifyMagicLinkUseCase.execute({ jti });
       if (!isAllowed)
         return new Response("Expired or revoked token", { status: 401 });
@@ -76,13 +76,14 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         await createUserUseCase.execute({ email, username });
       }
 
+      token = await jwt.sign({ sub: email, username });
       let maxAge = TOKEN_MAX_AGE;
       let redirectUrl = env.FRONTEND_URL;
 
       if (user && user.twoFactorAuthSecret) {
         token = await pendingJwt.sign({ sub: email, username });
         maxAge = PENDING_TOKEN_MAX_AGE;
-        redirectUrl = "http://localhost:3000/login?twoFA=true";
+        redirectUrl += "/login?twoFA=true";
       }
 
       cookie.auth.set({
