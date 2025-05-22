@@ -1,5 +1,10 @@
 import { Elysia, t } from "elysia";
 import { ulid } from "ulid";
+import type {
+  Setup2FAResponse,
+  GenerateBackupCodesResponse,
+  ResetBackupCodesResponse,
+} from "@repo/api-contracts";
 
 import {
   CreateUserUseCase,
@@ -130,11 +135,11 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         }
       }
 
-      const responseBody = JSON.stringify({
+      const responseBody = {
         uri: encodeURIComponent(data.uri),
-      });
+      } satisfies Setup2FAResponse;
 
-      return new Response(responseBody, { status: 200 });
+      return new Response(JSON.stringify(responseBody), { status: 200 });
     },
     { cookie: t.Cookie({ auth: t.String() }) },
   )
@@ -188,8 +193,11 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         }
       }
 
-      const responseBody = JSON.stringify({ backupCodes });
-      return new Response(responseBody, { status: 200 });
+      const responseBody = {
+        backupCodes,
+      } satisfies GenerateBackupCodesResponse;
+
+      return new Response(JSON.stringify(responseBody), { status: 200 });
     },
     {
       body: t.Object({ code: t.String() }),
@@ -375,7 +383,11 @@ export const authRoute = new Elysia({ prefix: "/auth" })
         }
       }
 
-      return new Response(JSON.stringify({ backupCodes }), { status: 200 });
+      const responseBody = {
+        backupCodes,
+      } satisfies ResetBackupCodesResponse;
+
+      return new Response(JSON.stringify(responseBody), { status: 200 });
     },
     {
       cookie: t.Cookie({ auth: t.String() }),

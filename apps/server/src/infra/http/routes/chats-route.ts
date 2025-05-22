@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import type { GetChatHistoryResponse } from "@repo/api-contracts";
 
 import { Message } from "@/app/entities";
 import { SendUserMessageUseCase, GetChatHistoryUseCase } from "@/app/use-cases";
@@ -50,7 +51,9 @@ export const chatsRoute = new Elysia({ prefix: "/chats" })
         }
       }
 
-      const responseBody = response.chatHistory.map(HttpMessageMapper.toHttp);
+      const responseBody = response.chatHistory.map(
+        HttpMessageMapper.toHttp,
+      ) satisfies GetChatHistoryResponse;
 
       return new Response(JSON.stringify(responseBody), {
         status: 200,
