@@ -52,7 +52,7 @@ export class StreamChatAdapter implements ChatAdapter {
       (message) =>
         new Message({
           id: message.id,
-          senderId: message.user_id!,
+          senderId: message.user?.id!,
           text: message.text!,
         }),
     );
