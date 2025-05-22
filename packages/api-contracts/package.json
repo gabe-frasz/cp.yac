@@ -1,0 +1,11 @@
+{
+  "name": "@repo/api-contracts",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "module": "./index.ts",
+  "types": "./index.ts",
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}
