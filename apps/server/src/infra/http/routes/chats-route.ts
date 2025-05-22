@@ -4,8 +4,9 @@ import { Message } from "@/app/entities";
 import { SendUserMessageUseCase, GetChatHistoryUseCase } from "@/app/use-cases";
 import { GeminiAIAgentAdapter, StreamChatAdapter } from "@/app/adapters";
 import { DrizzleUserRepository } from "@/infra/database";
+import { HttpMessageMapper } from "@/infra/http";
 import { jwtPlugin } from "@/infra/http/plugins";
-import { AI_AGENT_CHAT_ID, MAX_MESSAGES_OFFSET } from "@/app/constants";
+import { AI_AGENT_CHAT_ID, MAX_MESSAGES_OFFSET } from "@/constants";
 
 export const chatsRoute = new Elysia({ prefix: "/chats" })
   .use(jwtPlugin)
@@ -49,9 +50,9 @@ export const chatsRoute = new Elysia({ prefix: "/chats" })
         }
       }
 
-      const responseBody = JSON.stringify(response.chatHistory);
+      const responseBody = response.chatHistory.map(HttpMessageMapper.toHttp);
 
-      return new Response(responseBody, {
+      return new Response(JSON.stringify(responseBody), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
